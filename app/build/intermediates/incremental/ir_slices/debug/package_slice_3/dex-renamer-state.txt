@@ -1,4 +1,0 @@
-#Thu May 30 19:46:10 CEST 2019
-base.0=/Users/AlbertSanchez/AndroidStudioProjects/WhatsApp_exercise/app/build/intermediates/transforms/dexMerger/debug/3
-path.0=classes.dex
-renamed.0=classes.dex
