@@ -50,7 +50,7 @@ public class e_MessagesActivity extends Activity {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.e_messages);
     globalState = (_GlobalState) getApplication();
-    TextView title = (TextView) findViewById(R.id.title);
+    TextView title = findViewById(R.id.title);
     title.setText("Talking with: " + globalState.user_to_talk_to.getName());
     setup_input_text();
 
@@ -70,16 +70,15 @@ public class e_MessagesActivity extends Activity {
     super.onResume();
 
     // Polling Strategy
-    timer = new Timer();
-    timer.scheduleAtFixedRate(new fetchNewMessagesTimerTask(), 0, 10000);
+    //timer = new Timer();
+    //timer.scheduleAtFixedRate(new fetchNewMessagesTimerTask(), 0, 10000);
   }
 
   @Override
   protected void onPause() {
     super.onPause();
 
-    timer.cancel();
-
+    //timer.cancel();
   }
 
   private class fetchAllMessages_Task extends AsyncTask<Integer, Void, List<Message>> {
@@ -118,7 +117,7 @@ public class e_MessagesActivity extends Activity {
     protected List<Message> doInBackground(Integer... userIds) {
 
       if (adapter == null || adapter.isEmpty())
-        return new ArrayList<Message>();
+        return new ArrayList<>();
       else
         return RPC.retrieveNewMessages(userIds[0], userIds[1], adapter.getLastMessage());
     }
@@ -196,8 +195,8 @@ public class e_MessagesActivity extends Activity {
 
   private void setup_input_text(){
 
-    input_text = (EditText) findViewById(R.id.input);
-    button = (Button) findViewById(R.id.mybutton);
+    input_text = findViewById(R.id.input);
+    button = findViewById(R.id.mybutton);
     button.setEnabled(false);
 
     //to be notified when the content of the input_text is modified:
