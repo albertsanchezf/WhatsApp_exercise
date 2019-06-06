@@ -30,7 +30,6 @@ import java.util.TimerTask;
 
 import edu.upc.whatsapp.comms.RPC;
 import edu.upc.whatsapp.adapter.MyAdapter_messages;
-import edu.upc.whatsapp.service.PushService;
 import entity.Message;
 
 public class e_MessagesActivity extends Activity {
@@ -56,13 +55,6 @@ public class e_MessagesActivity extends Activity {
 
     new fetchAllMessages_Task().execute(globalState.my_user.getId(), globalState.user_to_talk_to.getId());
 
-    // Push Strategy
-    new Thread(new Runnable() {
-      @Override
-      public void run() {
-        PushService pushService = new PushService();
-      }
-    }).run();
   }
 
   @Override
@@ -70,15 +62,15 @@ public class e_MessagesActivity extends Activity {
     super.onResume();
 
     // Polling Strategy
-    //timer = new Timer();
-    //timer.scheduleAtFixedRate(new fetchNewMessagesTimerTask(), 0, 10000);
+    timer = new Timer();
+    timer.scheduleAtFixedRate(new fetchNewMessagesTimerTask(), 0, 10000);
   }
 
   @Override
   protected void onPause() {
     super.onPause();
 
-    //timer.cancel();
+    timer.cancel();
   }
 
   private class fetchAllMessages_Task extends AsyncTask<Integer, Void, List<Message>> {
