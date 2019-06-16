@@ -75,11 +75,10 @@ public class e_MessagesActivity extends Activity {
 
     // Push Strategy
     new Thread(new Runnable() {
-      //@Override
+      @Override
       public void run() {
         connectToServer();
       }
-    //}).run();
     }).start();
     new fetchAllMessages_Task().execute(globalState.my_user.getId(), globalState.user_to_talk_to.getId());
 
@@ -297,50 +296,59 @@ public class e_MessagesActivity extends Activity {
     }
   }
 
-  public class MyEndPoint extends Endpoint{
+  public class MyEndPoint extends Endpoint {
       @Override
-      public void onOpen(Session session, EndpointConfig endPointConfig){
+      public void onOpen(Session session, EndpointConfig endPointConfig) {
 
-        session.addMessageHandler(new MessageHandler.Whole<String>() {
-            @Override
-            public void onMessage(String message) {
-                android.os.Message m = handler.obtainMessage();
-                Bundle b = new Bundle();
-                b.putSerializable("String", message);
-                m.setData(b);
-                handler.sendMessage(m);
+          session.addMessageHandler(new MessageHandler.Whole<String>() {
+              @Override
+              public void onMessage(String message) {
+                  android.os.Message m = handler.obtainMessage();
+                  Bundle b = new Bundle();
+                  b.putSerializable("String", message);
+                  m.setData(b);
+                  handler.sendMessage(m);
               }
-        });
+          });
 
-        String json_message = gson.toJson(globalState.my_user);
-        try {
-          session.getBasicRemote().sendText(json_message);
-        } catch (IOException e) {
-          e.printStackTrace();
-        }
-
-      }
-      @Override
-      public void onError(Session session, Throwable t){
-
-      }
-
-      @Override
-      public void onClose(Session session, CloseReason closeReason){
-
-      }
-
-      Handler handler = new Handler(){
-          @Override
-          public void handleMessage(android.os.Message m){
-            progressDialog.dismiss();
-            String msg = (String)m.getData().getSerializable("String");
-            adapter.addMessage(gson.fromJson(msg, Message.class));
-            conversation.setAdapter(adapter);
+          String json_message = gson.toJson(globalState.my_user);
+          try {
+              session.getBasicRemote().sendText(json_message);
+          } catch (IOException e) {
+              e.printStackTrace();
           }
 
-      };
+      }
 
+      @Override
+      public void onError(Session session, Throwable t) {
+
+      }
+
+      @Override
+      public void onClose(Session session, CloseReason closeReason) {
+
+      }
   }
+
+  Handler handler = new Handler(){
+      @Override
+      public void handleMessage(android.os.Message m){
+        progressDialog.dismiss();
+        String msg = (String)m.getData().getSerializable("String");
+        Message message = gson.fromJson(msg, Message.class);
+
+        if(message.getUserSender().getId() == globalState.user_to_talk_to.getId()) {
+            toastShow("New message downloaded");
+            adapter.addMessage(message);
+            conversation.setAdapter(adapter);
+        }
+        else
+            toastShow("New message from " + message.getUserSender().getName() + " " +
+                    message.getUserSender().getSurname() + " downloaded");
+      }
+  };
+
+
 
 }
