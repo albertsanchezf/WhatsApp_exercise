@@ -6,6 +6,7 @@ import android.content.Context;
 import android.graphics.Rect;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.KeyEvent;
@@ -21,6 +22,11 @@ import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 import android.widget.Toast;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Calendar;
@@ -28,10 +34,21 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import edu.upc.whatsapp.comms.DateSerializerDeserializer;
 import edu.upc.whatsapp.comms.RPC;
 import edu.upc.whatsapp.adapter.MyAdapter_messages;
-import edu.upc.whatsapp.service.PushService;
 import entity.Message;
+
+import org.glassfish.tyrus.client.ClientManager;
+
+import javax.websocket.ClientEndpointConfig;
+import javax.websocket.CloseReason;
+import javax.websocket.Endpoint;
+import javax.websocket.EndpointConfig;
+import javax.websocket.MessageHandler;
+import javax.websocket.Session;
+
+import static edu.upc.whatsapp.comms.Comms.ENDPOINT;
 
 public class e_MessagesActivity extends Activity {
 
@@ -43,6 +60,8 @@ public class e_MessagesActivity extends Activity {
   private Button button;
   private boolean enlarged = false, shrunk = true;
 
+  private static Gson gson = new GsonBuilder().registerTypeAdapter(Date.class, new DateSerializerDeserializer()).create();
+
   private Timer timer;
 
   @Override
@@ -50,19 +69,19 @@ public class e_MessagesActivity extends Activity {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.e_messages);
     globalState = (_GlobalState) getApplication();
-    TextView title = (TextView) findViewById(R.id.title);
+    TextView title = findViewById(R.id.title);
     title.setText("Talking with: " + globalState.user_to_talk_to.getName());
     setup_input_text();
-
-    new fetchAllMessages_Task().execute(globalState.my_user.getId(), globalState.user_to_talk_to.getId());
 
     // Push Strategy
     new Thread(new Runnable() {
       @Override
       public void run() {
-        PushService pushService = new PushService();
+        connectToServer();
       }
-    }).run();
+    }).start();
+    new fetchAllMessages_Task().execute(globalState.my_user.getId(), globalState.user_to_talk_to.getId());
+
   }
 
   @Override
@@ -70,16 +89,15 @@ public class e_MessagesActivity extends Activity {
     super.onResume();
 
     // Polling Strategy
-    timer = new Timer();
-    timer.scheduleAtFixedRate(new fetchNewMessagesTimerTask(), 0, 10000);
+    //timer = new Timer();
+    //timer.scheduleAtFixedRate(new fetchNewMessagesTimerTask(), 0, 10000);
   }
 
   @Override
   protected void onPause() {
     super.onPause();
 
-    timer.cancel();
-
+    //timer.cancel();
   }
 
   private class fetchAllMessages_Task extends AsyncTask<Integer, Void, List<Message>> {
@@ -118,7 +136,7 @@ public class e_MessagesActivity extends Activity {
     protected List<Message> doInBackground(Integer... userIds) {
 
       if (adapter == null || adapter.isEmpty())
-        return new ArrayList<Message>();
+        return new ArrayList<>();
       else
         return RPC.retrieveNewMessages(userIds[0], userIds[1], adapter.getLastMessage());
     }
@@ -196,8 +214,8 @@ public class e_MessagesActivity extends Activity {
 
   private void setup_input_text(){
 
-    input_text = (EditText) findViewById(R.id.input);
-    button = (Button) findViewById(R.id.mybutton);
+    input_text = findViewById(R.id.input);
+    button = findViewById(R.id.mybutton);
     button.setEnabled(false);
 
     //to be notified when the content of the input_text is modified:
@@ -267,5 +285,70 @@ public class e_MessagesActivity extends Activity {
     toast.setGravity(0, 0, 200);
     toast.show();
   }
+
+  private void connectToServer(){
+    try{
+      ClientManager client = ClientManager.createClient();
+      client.connectToServer(new MyEndPoint(), ClientEndpointConfig.Builder.create().build(), URI.create(ENDPOINT));
+    }
+    catch (Exception e){
+      e.printStackTrace();
+    }
+  }
+
+  public class MyEndPoint extends Endpoint {
+      @Override
+      public void onOpen(Session session, EndpointConfig endPointConfig) {
+
+          session.addMessageHandler(new MessageHandler.Whole<String>() {
+              @Override
+              public void onMessage(String message) {
+                  android.os.Message m = handler.obtainMessage();
+                  Bundle b = new Bundle();
+                  b.putSerializable("String", message);
+                  m.setData(b);
+                  handler.sendMessage(m);
+              }
+          });
+
+          String json_message = gson.toJson(globalState.my_user);
+          try {
+              session.getBasicRemote().sendText(json_message);
+          } catch (IOException e) {
+              e.printStackTrace();
+          }
+
+      }
+
+      @Override
+      public void onError(Session session, Throwable t) {
+
+      }
+
+      @Override
+      public void onClose(Session session, CloseReason closeReason) {
+
+      }
+  }
+
+  Handler handler = new Handler(){
+      @Override
+      public void handleMessage(android.os.Message m){
+        progressDialog.dismiss();
+        String msg = (String)m.getData().getSerializable("String");
+        Message message = gson.fromJson(msg, Message.class);
+
+        if(message.getUserSender().getId() == globalState.user_to_talk_to.getId()) {
+            toastShow("New message downloaded");
+            adapter.addMessage(message);
+            conversation.setAdapter(adapter);
+        }
+        else
+            toastShow("New message from " + message.getUserSender().getName() + " " +
+                    message.getUserSender().getSurname() + " downloaded");
+      }
+  };
+
+
 
 }
